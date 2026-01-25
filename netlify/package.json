@@ -1,8 +1,0 @@
-{
-  "name": "n8n-netlify-proxy",
-  "version": "1.0.0",
-  "description": "Proxy for n8n webhooks using Netlify Functions",
-  "dependencies": {
-    "node-fetch": "^2.6.1"
-  }
-}
