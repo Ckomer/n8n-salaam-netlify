@@ -1,0 +1,3 @@
+[build]
+  # Definisite folder gde se nalaze vase funkcije
+  functions = "netlify/functions"
