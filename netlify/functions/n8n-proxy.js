@@ -14,39 +14,30 @@ const N8N_URL_MAP = {
 
 // 1. Definicija CORS Headera
 const CORS_HEADERS = {
-    // Ovo dozvoljava pristup SVIM domenima. Za veću sigurnost, 
-    // zamenite '*' sa 'https://airportexecutive.webflow.io'
     'Access-Control-Allow-Origin': '*', 
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Accept', // Dodajte sve headere koje šaljete
+    'Access-Control-Allow-Headers': 'Content-Type, Accept',
 };
 
-
 exports.handler = async (event) => {
-    
     // --- RUKOVODJENJE PREFLIGHT ZAHTEVIMA (OPTIONS) ---
-    // Preflight zahtev je ono što uzrokuje CORS grešku, mora se obraditi prvi.
     if (event.httpMethod === 'OPTIONS') {
         return {
             statusCode: 200,
-            headers: CORS_HEADERS, // Vraćamo samo headere
+            headers: CORS_HEADERS,
             body: JSON.stringify({ message: "CORS preflight request successful." }),
         };
     }
-    // --------------------------------------------------
-
 
     // 1. Identifikacija ciljnog webhooka
     const parts = event.path.split('/');
     const targetKey = parts[parts.length - 1]; 
-
     const webhookId = N8N_URL_MAP[targetKey];
-    
-    // U slučaju nepoznate rute
+
     if (!webhookId) {
         return { 
             statusCode: 404, 
-            headers: CORS_HEADERS, // Vraćamo CORS headere
+            headers: CORS_HEADERS,
             body: JSON.stringify({ message: `Nepoznata ciljna ruta: ${targetKey}` }) 
         };
     }
@@ -54,50 +45,58 @@ exports.handler = async (event) => {
     const n8nUrl = N8N_BASE_URL + webhookId;
     const method = event.httpMethod;
     let finalN8nUrl = n8nUrl;
-    
+
     // Rukovodjenje GET zahtevima i query parametrima
-    if (method === 'GET') {
+    if (method === 'GET' && event.queryStringParameters) {
         const params = new URLSearchParams(event.queryStringParameters).toString();
-        if (params) {
-            finalN8nUrl = `${n8nUrl}?${params}`;
-        }
+        if (params) finalN8nUrl = `${n8nUrl}?${params}`;
     }
 
-    
     // Postavljanje header-a za prosleđivanje ka n8n
     const headers = {};
 
-    // Ako request nije multipart/form-data, setuj JSON
-    if (!event.headers['content-type']?.includes('multipart/form-data')) {
+    // Ako request NIJE multipart, setuj JSON
+    const isMultipart = event.headers['content-type']?.includes('multipart/form-data');
+    if (!isMultipart) {
         headers['Content-Type'] = 'application/json';
     }
 
-
     // 2. Server-to-Server poziv ka n8n
     try {
+        let bodyToSend = null;
+
+        if (method === 'POST' || method === 'PUT') {
+            if (isMultipart) {
+                // multipart/form-data → pošalji raw body kao buffer, NE dodavati Content-Type
+                bodyToSend = Buffer.from(event.body, 'utf8');
+            } else {
+                // JSON → pošalji kao string
+                bodyToSend = event.body;
+            }
+        }
+
         const response = await fetch(finalN8nUrl, {
-            method: method,
-            headers: headers,
-            body: (method === 'POST' || method === 'PUT') ? event.body : null, 
+            method,
+            headers,
+            body: bodyToSend,
         });
 
-        // 3. Vraćanje odgovora klijentu
-        const data = await response.text(); 
-        
+        const data = await response.text();
+
         return {
             statusCode: response.status,
-            body: data, 
+            body: data,
             headers: {
-                ...CORS_HEADERS, // SADA DODAJEMO CORS HEADERE
+                ...CORS_HEADERS,
                 'Content-Type': response.headers.get('content-type') || 'application/json',
-            }
+            },
         };
 
     } catch (error) {
         console.error(`N8N Proxy Greška za ${targetKey}:`, error.message);
         return { 
             statusCode: 500, 
-            headers: CORS_HEADERS, // Dodajemo CORS headere i na greške
+            headers: CORS_HEADERS,
             body: JSON.stringify({ message: `Interna serverska greška u proxyju za ${targetKey}.` }) 
         };
     }
