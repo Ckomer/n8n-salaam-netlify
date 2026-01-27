@@ -5,7 +5,7 @@ const N8N_BASE_URL = 'https://n8n.srv1283227.hstgr.cloud/webhook/';
 
 // MAPA: Ključ rute (koji pozivate iz Webflowa) : n8n Webhook ID
 const N8N_URL_MAP = {
-    'team': 'ac5b5b10-3682-4390-95cf-e0c8012094df',
+    'team': '9fdd0663-6541-453b-b3c6-887f333cccf8',
     'player': 'd66ae0c0-ad73-4b0a-a15d-1d03f2d43877',
     'free-agent': 'e489dfe3-85e9-4108-a990-a268bd33d9e5',
 };
