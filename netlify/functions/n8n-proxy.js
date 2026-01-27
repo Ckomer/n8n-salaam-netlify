@@ -63,10 +63,15 @@ exports.handler = async (event) => {
         }
     }
 
+    
     // Postavljanje header-a za prosleđivanje ka n8n
-    const headers = {
-        'Content-Type': 'application/json',
-    };
+    const headers = {};
+
+    // Ako request nije multipart/form-data, setuj JSON
+    if (!event.headers['content-type']?.includes('multipart/form-data')) {
+        headers['Content-Type'] = 'application/json';
+    }
+
 
     // 2. Server-to-Server poziv ka n8n
     try {
