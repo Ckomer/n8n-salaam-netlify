@@ -20,7 +20,8 @@ const CORS_HEADERS = {
 };
 
 exports.handler = async (event) => {
-    // --- RUKOVODJENJE PREFLIGHT ZAHTEVIMA (OPTIONS) ---
+
+    // --- PREFLIGHT ZAHTEVI ---
     if (event.httpMethod === 'OPTIONS') {
         return {
             statusCode: 200,
@@ -29,7 +30,7 @@ exports.handler = async (event) => {
         };
     }
 
-    // 1. Identifikacija ciljnog webhooka
+    // --- IDENTIFIKACIJA WEBHOOKA ---
     const parts = event.path.split('/');
     const targetKey = parts[parts.length - 1]; 
     const webhookId = N8N_URL_MAP[targetKey];
@@ -46,35 +47,38 @@ exports.handler = async (event) => {
     const method = event.httpMethod;
     let finalN8nUrl = n8nUrl;
 
-    // Rukovodjenje GET zahtevima i query parametrima
-    if (method === 'GET' && event.queryStringParameters) {
+    // --- GET query parametri ---
+    if (method === 'GET') {
         const params = new URLSearchParams(event.queryStringParameters).toString();
         if (params) finalN8nUrl = `${n8nUrl}?${params}`;
     }
 
-    // Postavljanje header-a za prosleđivanje ka n8n
-    const headers = {};
+    // --- DETEKCIJA MULTIPART ---
+    const contentType = event.headers['content-type'] || event.headers['Content-Type'] || '';
+    const isMultipart = contentType.includes('multipart/form-data');
 
-    // Ako request NIJE multipart, setuj JSON
-    const isMultipart = event.headers['content-type']?.includes('multipart/form-data');
+    // --- HEADERI ZA FETCH ---
+    const headers = {};
     if (!isMultipart) {
+        // JSON request → setujemo header
         headers['Content-Type'] = 'application/json';
     }
+    // Za multipart → fetch automatski koristi boundary iz browsera, NE POSTAVLJAJ Content-Type
 
-    // 2. Server-to-Server poziv ka n8n
-    try {
-        let bodyToSend = null;
-
-        if (method === 'POST' || method === 'PUT') {
-            if (isMultipart) {
-                // multipart/form-data → pošalji raw body kao buffer, NE dodavati Content-Type
-                bodyToSend = Buffer.from(event.body, 'utf8');
-            } else {
-                // JSON → pošalji kao string
-                bodyToSend = event.body;
-            }
+    // --- BODY ZA FETCH ---
+    let bodyToSend = null;
+    if (method === 'POST' || method === 'PUT') {
+        if (isMultipart) {
+            bodyToSend = event.isBase64Encoded 
+                ? Buffer.from(event.body, 'base64') 
+                : event.body;
+        } else {
+            bodyToSend = event.body;
         }
+    }
 
+    // --- SERVER-TO-SERVER FETCH ---
+    try {
         const response = await fetch(finalN8nUrl, {
             method,
             headers,
@@ -89,7 +93,7 @@ exports.handler = async (event) => {
             headers: {
                 ...CORS_HEADERS,
                 'Content-Type': response.headers.get('content-type') || 'application/json',
-            },
+            }
         };
 
     } catch (error) {
