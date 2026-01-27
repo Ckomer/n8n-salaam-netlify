@@ -14,31 +14,39 @@ const N8N_URL_MAP = {
 
 // 1. Definicija CORS Headera
 const CORS_HEADERS = {
+    // Ovo dozvoljava pristup SVIM domenima. Za veću sigurnost, 
+    // zamenite '*' sa 'https://airportexecutive.webflow.io'
     'Access-Control-Allow-Origin': '*', 
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Accept',
+    'Access-Control-Allow-Headers': 'Content-Type, Accept', // Dodajte sve headere koje šaljete
 };
 
-exports.handler = async (event) => {
 
-    // --- PREFLIGHT ZAHTEVI ---
+exports.handler = async (event) => {
+    
+    // --- RUKOVODJENJE PREFLIGHT ZAHTEVIMA (OPTIONS) ---
+    // Preflight zahtev je ono što uzrokuje CORS grešku, mora se obraditi prvi.
     if (event.httpMethod === 'OPTIONS') {
         return {
             statusCode: 200,
-            headers: CORS_HEADERS,
+            headers: CORS_HEADERS, // Vraćamo samo headere
             body: JSON.stringify({ message: "CORS preflight request successful." }),
         };
     }
+    // --------------------------------------------------
 
-    // --- IDENTIFIKACIJA WEBHOOKA ---
+
+    // 1. Identifikacija ciljnog webhooka
     const parts = event.path.split('/');
     const targetKey = parts[parts.length - 1]; 
-    const webhookId = N8N_URL_MAP[targetKey];
 
+    const webhookId = N8N_URL_MAP[targetKey];
+    
+    // U slučaju nepoznate rute
     if (!webhookId) {
         return { 
             statusCode: 404, 
-            headers: CORS_HEADERS,
+            headers: CORS_HEADERS, // Vraćamo CORS headere
             body: JSON.stringify({ message: `Nepoznata ciljna ruta: ${targetKey}` }) 
         };
     }
@@ -46,52 +54,36 @@ exports.handler = async (event) => {
     const n8nUrl = N8N_BASE_URL + webhookId;
     const method = event.httpMethod;
     let finalN8nUrl = n8nUrl;
-
-    // --- GET query parametri ---
+    
+    // Rukovodjenje GET zahtevima i query parametrima
     if (method === 'GET') {
         const params = new URLSearchParams(event.queryStringParameters).toString();
-        if (params) finalN8nUrl = `${n8nUrl}?${params}`;
-    }
-
-    // --- DETEKCIJA MULTIPART ---
-    const contentType = event.headers['content-type'] || event.headers['Content-Type'] || '';
-    const isMultipart = contentType.includes('multipart/form-data');
-
-    // --- HEADERI ZA FETCH ---
-    const headers = {};
-    if (!isMultipart) {
-        // JSON request → setujemo header
-        headers['Content-Type'] = 'application/json';
-    }
-    // Za multipart → fetch automatski koristi boundary iz browsera, NE POSTAVLJAJ Content-Type
-
-    // --- BODY ZA FETCH ---
-    let bodyToSend = null;
-    if (method === 'POST' || method === 'PUT') {
-        if (isMultipart) {
-            bodyToSend = event.isBase64Encoded 
-                ? Buffer.from(event.body, 'base64') 
-                : event.body;
-        } else {
-            bodyToSend = event.body;
+        if (params) {
+            finalN8nUrl = `${n8nUrl}?${params}`;
         }
     }
 
-    // --- SERVER-TO-SERVER FETCH ---
+    // Postavljanje header-a za prosleđivanje ka n8n
+    const headers = {
+        'Content-Type': 'application/json',
+    };
+
+    // 2. Server-to-Server poziv ka n8n
     try {
         const response = await fetch(finalN8nUrl, {
-            method,
-            headers,
-            body: bodyToSend,
+            method: method,
+            headers: headers,
+            body: (method === 'POST' || method === 'PUT') ? event.body : null, 
         });
 
-        const data = await response.text();
-
+        // 3. Vraćanje odgovora klijentu
+        const data = await response.text(); 
+        
         return {
             statusCode: response.status,
-            body: data,
+            body: data, 
             headers: {
-                ...CORS_HEADERS,
+                ...CORS_HEADERS, // SADA DODAJEMO CORS HEADERE
                 'Content-Type': response.headers.get('content-type') || 'application/json',
             }
         };
@@ -100,7 +92,7 @@ exports.handler = async (event) => {
         console.error(`N8N Proxy Greška za ${targetKey}:`, error.message);
         return { 
             statusCode: 500, 
-            headers: CORS_HEADERS,
+            headers: CORS_HEADERS, // Dodajemo CORS headere i na greške
             body: JSON.stringify({ message: `Interna serverska greška u proxyju za ${targetKey}.` }) 
         };
     }
