@@ -1,7 +1,7 @@
 const fetch = require('node-fetch');
 
 const N8N_WEBHOOK =
-  'https://n8n.srv1283227.hstgr.cloud/webhook/527943bf-2ee5-427a-b4a5-aa6ef9bda05d';
+  'https://n8n.srv1283227.hstgr.cloud/webhook/865aa07b-ee66-45bb-bd08-fe465adb1c62';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
