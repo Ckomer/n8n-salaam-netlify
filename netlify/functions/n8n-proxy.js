@@ -9,6 +9,7 @@ const N8N_URL_MAP = {
     'player': 'd66ae0c0-ad73-4b0a-a15d-1d03f2d43877',
     'free-agent': 'e489dfe3-85e9-4108-a990-a268bd33d9e5',
     'get-tournaments': '729e0aa1-af65-430f-88bc-90b478d81f29',
+    'get-divisions': '494b93d8-16f6-47b2-8954-322cd15e78c8',
 };
 
 // 1. Definicija CORS Headera
