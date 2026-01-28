@@ -14,18 +14,21 @@ exports.handler = async (event) => {
     return {
       statusCode: 200,
       headers: CORS_HEADERS,
+      body: '',
     };
   }
 
   try {
+    const body = event.isBase64Encoded
+      ? Buffer.from(event.body, 'base64')
+      : event.body;
+
     const response = await fetch(N8N_WEBHOOK, {
       method: 'POST',
       headers: {
-        // 🔥 BITNO: prosleđujemo ORIGINALNI Content-Type
         'Content-Type': event.headers['content-type'],
       },
-      // 🔥 BITNO: raw body
-      body: event.body,
+      body,
     });
 
     const text = await response.text();
@@ -38,8 +41,9 @@ exports.handler = async (event) => {
       },
       body: text,
     };
-  } catch (err) {
-    console.error('Upload proxy error:', err);
+  } catch (error) {
+    console.error('Netlify upload proxy error:', error);
+
     return {
       statusCode: 500,
       headers: CORS_HEADERS,
