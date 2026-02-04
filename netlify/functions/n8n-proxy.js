@@ -11,6 +11,7 @@ const N8N_URL_MAP = {
     'get-tournaments': '729e0aa1-af65-430f-88bc-90b478d81f29',
     'get-divisions': '494b93d8-16f6-47b2-8954-322cd15e78c8',
     'get-teams': '51366529-87a1-4005-a3ca-8f771cf819df',
+    'get-games': '3901fc41-6425-4ce1-8255-0cc4f054d7b3',
 };
 // 1. Definicija CORS Headera
 const CORS_HEADERS = {
